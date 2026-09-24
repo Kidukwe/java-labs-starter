@@ -14,7 +14,7 @@ public final class CourseToolkit {
         if (number < 2) {
             return false;
         } 
-        for (int divisor = 2; divisor * divisor <= number; divisor++){
+        for (int divisor = 2; (long) divisor * divisor <= number; divisor++){
             if (number % divisor == 0) {
                 return false;
             }
