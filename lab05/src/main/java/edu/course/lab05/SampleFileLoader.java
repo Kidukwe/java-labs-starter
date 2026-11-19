@@ -39,7 +39,13 @@ public final class SampleFileLoader {
 
     private void parseRow(
             String line, int lineNumber, List<DataSample> samples, List<ValidationError> errors) {
-        String[] fields = line.split(";", -1);
+        String[] fields;
+        try {
+            fields = splitFields(line);
+        } catch (IllegalArgumentException e) {
+            errors.add(new ValidationError(lineNumber, "row", e.getMessage()));
+            return;
+        }
         if (fields.length != FIELD_NAMES.length) {
             errors.add(new ValidationError(lineNumber, "row", "Expected " + FIELD_NAMES.length + " fields"));
             return;
@@ -73,5 +79,39 @@ public final class SampleFileLoader {
         }
 
         samples.add(new DataSample(fields[0], fields[1], fields[2], featureCount, status));
+    }
+
+    private String[] splitFields(String line) {
+        List<String> fields = new ArrayList<>();
+        StringBuilder field = new StringBuilder();
+        boolean inQuotes = false;
+
+        for (int i = 0; i < line.length(); i++) {
+            char current = line.charAt(i);
+            if (current == '"') {
+                if (inQuotes) {
+                    inQuotes = false;
+                    if (i + 1 < line.length() && line.charAt(i + 1) != ';') {
+                        throw new IllegalArgumentException("Expected delimiter after closing quote");
+                    }
+                } else {
+                    if (!field.isEmpty()) {
+                        throw new IllegalArgumentException("Quote must start a field");
+                    }
+                    inQuotes = true;
+                }
+            } else if (current == ';' && !inQuotes) {
+                fields.add(field.toString());
+                field.setLength(0);
+            } else {
+                field.append(current);
+            }
+        }
+
+        if (inQuotes) {
+            throw new IllegalArgumentException("Unclosed quoted field");
+        }
+        fields.add(field.toString());
+        return fields.toArray(new String[0]);
     }
 }

@@ -53,6 +53,47 @@ class SampleFileLoaderTest {
     }
 
     @Test
+    void keepsSemicolonInsideQuotedField() throws IOException {
+        Path file = writeSamples("S-101;\"кошка;серая\";\"camera-1\";128;\"READY\"");
+
+        LoadResult result = loader.load(file);
+
+        assertTrue(result.getErrors().isEmpty());
+        assertEquals(1, result.getSamples().size());
+        DataSample sample = result.getSamples().getFirst();
+        assertEquals("кошка;серая", sample.getLabel());
+        assertEquals("camera-1", sample.getSource());
+        assertEquals(SampleStatus.READY, sample.getStatus());
+    }
+
+    @Test
+    void rejectsEmptyQuotedFieldAsFieldError() throws IOException {
+        Path file = writeSamples("S-101;\"\";camera-1;128;READY");
+
+        assertRejectedRow(loader.load(file), "label");
+    }
+
+    @Test
+    void continuesAfterUnclosedQuotedField() throws IOException {
+        Path file = writeSamples(
+                "S-101;\"cat;camera-1;128;READY",
+                "S-102;dog;camera-1;64;RAW");
+
+        LoadResult result = loader.load(file);
+
+        assertError(result, 2, "row");
+        assertEquals(1, result.getSamples().size());
+        assertEquals("S-102", result.getSamples().getFirst().getId());
+    }
+
+    @Test
+    void rejectsTextAfterClosingQuote() throws IOException {
+        Path file = writeSamples("S-101;\"cat\"extra;camera-1;128;READY");
+
+        assertRejectedRow(loader.load(file), "row");
+    }
+
+    @Test
     void reportsEmptyLastFieldAsStatusError() throws IOException {
         Path file = writeSamples("S-101;cat;camera-1;128;");
 
